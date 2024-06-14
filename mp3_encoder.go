@@ -34,6 +34,22 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 	originalSize := int64(mp3Tag.Size())
 	fmt.Println(originalSize)
 	for k, v := range mp3TextFrames {
+		if k == "DiscNumberString" {
+			textFrame := mp3TagLib.TextFrame{
+				Encoding: mp3TagLib.EncodingUTF8,
+				Text:     fmt.Sprintf("%d/%d", tag.DiscNumber, tag.DiscTotal),
+			}
+			mp3Tag.AddFrame(v, textFrame)
+			continue
+		}
+		if k == "TrackNumberString" {
+			textFrame := mp3TagLib.TextFrame{
+				Encoding: mp3TagLib.EncodingUTF8,
+				Text:     fmt.Sprintf("%d/%d", tag.TrackNumber, tag.TrackTotal),
+			}
+			mp3Tag.AddFrame(v, textFrame)
+			continue
+		}
 		if reflect.ValueOf(*tag).FieldByName(k).IsZero() {
 			mp3Tag.DeleteFrames(v)
 			continue
@@ -46,14 +62,16 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 	}
 	mp3Tag.DeleteFrames("APIC")
 	buf := new(bytes.Buffer)
-	if err := jpeg.Encode(buf, *tag.AlbumArt, nil); err == nil {
-		mp3Tag.AddAttachedPicture(mp3TagLib.PictureFrame{
-			Encoding:    mp3TagLib.EncodingUTF8,
-			MimeType:    "image/jpeg",
-			PictureType: mp3TagLib.PTFrontCover,
-			Description: "Front cover",
-			Picture:     buf.Bytes(),
-		})
+	if tag.CoverArt != nil {
+		if err := jpeg.Encode(buf, *tag.CoverArt, nil); err == nil {
+			mp3Tag.AddAttachedPicture(mp3TagLib.PictureFrame{
+				Encoding:    mp3TagLib.EncodingUTF8,
+				MimeType:    "image/jpeg",
+				PictureType: mp3TagLib.PTFrontCover,
+				Description: "Front cover",
+				Picture:     buf.Bytes(),
+			})
+		}
 	}
 	_, err = r.Seek(0, io.SeekStart)
 	if err != nil {

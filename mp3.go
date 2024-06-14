@@ -31,7 +31,7 @@ var mp3TextFrames = map[string]string{
 
 type MP3Tag struct {
 	Album             string
-	AlbumArt          *image.Image
+	CoverArt          *image.Image
 	AlbumArtist       string
 	Artist            string
 	BPM               string
@@ -58,11 +58,40 @@ type MP3Tag struct {
 	reader io.ReadSeeker
 }
 
+func (m *MP3Tag) ClearAllTags() {
+	m.Album = ""
+	m.AlbumArtist = ""
+	m.Artist = ""
+	m.BPM = ""
+	m.Composer = ""
+	m.Copyright = ""
+	m.CoverArt = nil
+	m.Date = ""
+	m.DiscNumber = 0
+	m.DiscTotal = 0
+	m.DiscNumberString = ""
+	m.EncodedBy = ""
+	m.Genre = ""
+	m.ISRC = ""
+	m.Language = ""
+	m.Length = ""
+	m.Lyricist = ""
+	m.Title = ""
+	m.TrackNumber = 0
+	m.TrackNumberString = ""
+	m.TrackTotal = 0
+	m.DiscNumber = 0
+	m.DiscTotal = 0
+	m.Publisher = ""
+	m.SubTitle = ""
+	m.Year = ""
+}
+
 func (t *MP3Tag) GetAlbum() string {
 	return t.Album
 }
 func (t *MP3Tag) GetCoverArt() *image.Image {
-	return t.AlbumArt
+	return t.CoverArt
 }
 func (t *MP3Tag) GetAlbumArtist() string {
 	return t.AlbumArtist
@@ -137,7 +166,7 @@ func (t *MP3Tag) SetAlbum(album string) {
 	t.Album = album
 }
 func (t *MP3Tag) SetCoverArt(coverArt *image.Image) {
-	t.AlbumArt = coverArt
+	t.CoverArt = coverArt
 }
 func (t *MP3Tag) SetAlbumArtist(albumArtist string) {
 	t.AlbumArtist = albumArtist

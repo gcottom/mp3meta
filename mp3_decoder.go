@@ -6,6 +6,8 @@ import (
 	"image"
 	"io"
 	"reflect"
+	"regexp"
+	"strconv"
 
 	mp3TagLib "github.com/bogem/id3v2/v2"
 )
@@ -23,12 +25,50 @@ func ParseMP3(r io.ReadSeeker) (*MP3Tag, error) {
 		if framer.Text == "" {
 			continue
 		}
-		rtPtr.FieldByName(k)
+		rtPtr.FieldByName(k).SetString(framer.Text)
 	}
 	if pictures := tag.GetFrames("APIC"); len(pictures) > 0 {
 		pic := pictures[0].(mp3TagLib.PictureFrame)
 		if img, _, err := image.Decode(bytes.NewReader(pic.Picture)); err == nil {
-			resultTag.AlbumArt = &img
+			resultTag.CoverArt = &img
+		}
+	}
+	re := regexp.MustCompile("[^0-9]+")
+
+	// Split the string based on the regular expression
+
+	if resultTag.DiscNumberString != "" {
+		result := re.Split(resultTag.DiscNumberString, -1)
+		if len(result) == 2 {
+			resultTag.DiscNumber, err = strconv.Atoi(result[0])
+			if err != nil {
+				return nil, err
+			}
+			resultTag.DiscTotal, err = strconv.Atoi(result[1])
+			if err != nil {
+				return nil, err
+			}
+		}
+		resultTag.DiscNumber, err = strconv.Atoi(result[0])
+		if err != nil {
+			return nil, err
+		}
+	}
+	if resultTag.TrackNumberString != "" {
+		result := re.Split(resultTag.TrackNumberString, -1)
+		if len(result) == 2 {
+			resultTag.TrackNumber, err = strconv.Atoi(result[0])
+			if err != nil {
+				return nil, err
+			}
+			resultTag.TrackTotal, err = strconv.Atoi(result[1])
+			if err != nil {
+				return nil, err
+			}
+		}
+		resultTag.TrackNumber, err = strconv.Atoi(result[0])
+		if err != nil {
+			return nil, err
 		}
 	}
 	return &resultTag, nil
