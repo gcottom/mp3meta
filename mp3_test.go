@@ -2,6 +2,7 @@ package mp3meta
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/jpeg"
 	"io"
@@ -10,7 +11,63 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+// MockReadSeeker is a mock implementation of io.ReadSeeker
+type MockReadSeeker struct {
+	mock.Mock
+	data   []byte
+	offset int64
+}
+
+// NewMockReadSeeker initializes a new MockReadSeeker with the given data
+func NewMockReadSeeker(data []byte) *MockReadSeeker {
+	return &MockReadSeeker{
+		data: data,
+	}
+}
+
+// Read reads up to len(p) bytes into p
+func (m *MockReadSeeker) Read(p []byte) (int, error) {
+	args := m.Called(p)
+	if m.offset >= int64(len(m.data)) {
+		return 0, io.EOF
+	}
+	n := copy(p, m.data[m.offset:])
+	m.offset += int64(n)
+	return n, args.Error(1)
+}
+
+// Seek sets the offset for the next Read or Write to offset, interpreted according to whence
+func (m *MockReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	args := m.Called(offset, whence)
+	switch whence {
+	case io.SeekStart:
+		m.offset = offset
+	case io.SeekCurrent:
+		m.offset += offset
+	case io.SeekEnd:
+		m.offset = int64(len(m.data)) + offset
+	}
+	if m.offset < 0 {
+		m.offset = 0
+	}
+	if m.offset > int64(len(m.data)) {
+		m.offset = int64(len(m.data))
+	}
+	return m.offset, args.Error(1)
+}
+
+type MockWriter struct {
+	mock.Mock
+}
+
+// Write writes len(p) bytes from p to the underlying data stream
+func (m *MockWriter) Write(p []byte) (int, error) {
+	args := m.Called(p)
+	return args.Int(0), args.Error(1)
+}
 
 func compareImages(src1 [][][3]float32, src2 [][][3]float32) bool {
 	dif := 0
@@ -52,6 +109,126 @@ func TestReadMP3Tags(t *testing.T) {
 	assert.NotEmpty(t, tag.GetArtist())
 	assert.NotEmpty(t, tag.GetAlbum())
 	assert.NotEmpty(t, tag.GetTitle())
+
+}
+
+func TestReadMP3TagsError(t *testing.T) {
+	path, _ := filepath.Abs("./testdata/testdata-mp3.mp3")
+	f, err := os.Open(path)
+	assert.NoError(t, err)
+	d, err := io.ReadAll(f)
+	assert.NoError(t, err)
+	rs := NewMockReadSeeker(d)
+	rs.On("Read", mock.Anything).Return(8, errors.New("bad read"))
+	_, err = ParseMP3(rs)
+	assert.Error(t, err)
+
+}
+
+func TestWriteMP3Errors(t *testing.T) {
+	t.Run("seek error 1", func(t *testing.T) {
+		path, _ := filepath.Abs("./testdata/testdata-mp3.mp3")
+		f, err := os.Open(path)
+		assert.NoError(t, err)
+		tag, err := ParseMP3(f)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tag.GetArtist())
+		assert.NotEmpty(t, tag.GetAlbum())
+		assert.NotEmpty(t, tag.GetTitle())
+		tag.ClearAllTags()
+		tag.SetAlbum("album1")
+		_, err = f.Seek(0, io.SeekStart)
+		assert.NoError(t, err)
+		d, err := io.ReadAll(f)
+		assert.NoError(t, err)
+		rs := NewMockReadSeeker(d)
+		tag.reader = rs
+		rs.On("Seek", int64(0), 0).Return(0, errors.New("bad seek"))
+		m := new(MockWriter)
+		err = SaveMP3(tag, m)
+		assert.Error(t, err)
+	})
+	t.Run("read error 1", func(t *testing.T) {
+		path, _ := filepath.Abs("./testdata/testdata-mp3.mp3")
+		f, err := os.Open(path)
+		assert.NoError(t, err)
+		tag, err := ParseMP3(f)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tag.GetArtist())
+		assert.NotEmpty(t, tag.GetAlbum())
+		assert.NotEmpty(t, tag.GetTitle())
+		tag.ClearAllTags()
+		tag.SetAlbum("album1")
+		_, err = f.Seek(0, io.SeekStart)
+		assert.NoError(t, err)
+		d, err := io.ReadAll(f)
+		assert.NoError(t, err)
+		rs := NewMockReadSeeker(d)
+		tag.reader = rs
+		rs.On("Seek", int64(0), 0).Return(0, nil)
+		rs.On("Read", mock.Anything).Return(0, errors.New("bad read"))
+		m := new(MockWriter)
+		err = SaveMP3(tag, m)
+		assert.Error(t, err)
+	})
+	t.Run("seek error 2", func(t *testing.T) {
+		path, _ := filepath.Abs("./testdata/testdata-mp3.mp3")
+		f, err := os.Open(path)
+		assert.NoError(t, err)
+		tag, err := ParseMP3(f)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tag.GetArtist())
+		assert.NotEmpty(t, tag.GetAlbum())
+		assert.NotEmpty(t, tag.GetTitle())
+		tag.ClearAllTags()
+		tag.SetAlbum("album1")
+		_, err = f.Seek(0, io.SeekStart)
+		assert.NoError(t, err)
+		d, err := io.ReadAll(f)
+		assert.NoError(t, err)
+		rs := NewMockReadSeeker(d)
+		tag.reader = rs
+		rs.On("Seek", int64(0), 0).Return(0, nil).Once()
+		rs.On("Read", mock.Anything).Return(0, nil)
+		rs.On("Seek", int64(0), 0).Return(0, errors.New("bad seek")).Once()
+		m := new(MockWriter)
+		m.On("Write", mock.Anything).Return(0, nil)
+		err = SaveMP3(tag, m)
+		assert.Error(t, err)
+	})
+	t.Run("write error 1", func(t *testing.T) {
+		path, _ := filepath.Abs("./testdata/testdata-mp3.mp3")
+		f, err := os.Open(path)
+		assert.NoError(t, err)
+		tag, err := ParseMP3(f)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tag.GetArtist())
+		assert.NotEmpty(t, tag.GetAlbum())
+		assert.NotEmpty(t, tag.GetTitle())
+		tag.ClearAllTags()
+		tag.SetAlbum("album1")
+		m := new(MockWriter)
+		m.On("Write", mock.Anything).Return(0, errors.New("bad write"))
+		err = SaveMP3(tag, m)
+		assert.Error(t, err)
+	})
+	t.Run("write error 2", func(t *testing.T) {
+		path, _ := filepath.Abs("./testdata/testdata-mp3.mp3")
+		f, err := os.Open(path)
+		assert.NoError(t, err)
+		tag, err := ParseMP3(f)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tag.GetArtist())
+		assert.NotEmpty(t, tag.GetAlbum())
+		assert.NotEmpty(t, tag.GetTitle())
+		tag.ClearAllTags()
+		tag.SetAlbum("album1")
+		m := new(MockWriter)
+		m.On("Write", mock.Anything).Return(64, nil).Once()
+		m.On("Write", mock.Anything).Return(0, errors.New("bad write")).Once()
+		err = SaveMP3(tag, m)
+		assert.Error(t, err)
+	})
 
 }
 
