@@ -18,14 +18,6 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 	if _, err := r.Seek(0, 0); err != nil {
 		return err
 	}
-	readerBytes, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	r = bytes.NewReader(readerBytes)
-	if _, err = r.Seek(0, 0); err != nil {
-		return err
-	}
 
 	mp3Tag, err := mp3TagLib.ParseReader(r, mp3TagLib.Options{Parse: true})
 	if err != nil {
