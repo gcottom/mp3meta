@@ -24,7 +24,6 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 		return err
 	}
 	originalSize := int64(mp3Tag.Size())
-	fmt.Println(originalSize)
 	for k, v := range mp3TextFrames {
 		if k == "DiscNumberString" {
 			textFrame := mp3TagLib.TextFrame{
