@@ -96,7 +96,7 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 		if _, err = t.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
-		if _, err := io.Copy(w2, bytes.NewReader(t.Bytes())); err != nil {
+		if _, err := io.Copy(w2, t.BytesReader()); err != nil {
 			return err
 		}
 		if _, err = f.Seek(0, io.SeekEnd); err != nil {
