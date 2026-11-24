@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"testing"
 
-	core "github.com/gcottom/audiometa-core"
-	"github.com/gcottom/audiometa-core/contracttest"
+	core "github.com/gcottom/audiometa-core/v2"
+	"github.com/gcottom/audiometa-core/v2/contracttest"
 )
 
 func rawFixture(t testing.TB, version byte, audio []byte, frames ...rawID3Frame) []byte {

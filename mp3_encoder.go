@@ -11,7 +11,7 @@ import (
 	"sort"
 
 	mp3TagLib "github.com/bogem/id3v2/v2"
-	core "github.com/gcottom/audiometa-core"
+	core "github.com/gcottom/audiometa-core/v2"
 )
 
 func SaveMP3(tag *MP3Tag, w io.Writer) error {

@@ -1,10 +1,13 @@
 # MP3META
 [![Coverage Status](https://coveralls.io/repos/github/gcottom/mp3meta/badge.svg?branch=main)](https://coveralls.io/github/gcottom/mp3meta?branch=main)
 
-MP3Meta reads and writes MP3 metadata as a standalone library and as the MP3 adapter for AudioMeta v3. The legacy parser uses Bogem's MIT-licensed id3v2 package.
+MP3Meta reads and writes MP3 metadata as a standalone library and as the MP3 adapter for AudioMeta v4. The legacy parser uses Bogem's MIT-licensed id3v2 package.
+
+Use `github.com/gcottom/mp3meta/v2` for v2. To upgrade a direct dependency
+from v0.0.5, update the import path and keep using the same package name.
 
 ## Acknowledgements
-- [id3v2](https://github.com/bogem/id3v2/v2) - Bogem's id3v2 library is the magic behind the mp3 portion of AudioMeta v3. Thank you Bogem for this amazingly useful lib.
+- The original MP3 adapter used [Bogem's id3v2 package](https://github.com/bogem/id3v2). The legacy parser still uses it.
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
@@ -12,13 +15,13 @@ This project is licensed under the MIT License. See the LICENSE file for details
 Parts of this project include third-party libraries under the MIT license. See the LICENSE file for details.
 
 ## Related Links
-[audiometa v3](https://github.com/gcottom/audiometa/v3)
+[AudioMeta v4](https://pkg.go.dev/github.com/gcottom/audiometa/v4)
 
-[mp4meta](https://github.com/gcottom/mp4meta)
+[MP4Meta v2](https://pkg.go.dev/github.com/gcottom/mp4meta/v2)
 
-[oggmeta](https://github.com/gcottom/oggmeta)
+[OggMeta v2](https://pkg.go.dev/github.com/gcottom/oggmeta/v2)
 
-[flacmeta](https://github.com/gcottom/flacmeta)
+[FLACMeta v2](https://pkg.go.dev/github.com/gcottom/flacmeta/v2)
 
 ## Canonical metadata
 
@@ -40,8 +43,8 @@ if err := editor.SetCustom("COLLECTION", "Favorites", "Archive"); err != nil {
 return editor.Save(output)
 ```
 
-The example imports `github.com/gcottom/mp3meta` and
-`github.com/gcottom/audiometa-core` as `core`. The AudioMeta field registry
+The example imports `github.com/gcottom/mp3meta/v2` and
+`github.com/gcottom/audiometa-core/v2` as `core`. The AudioMeta field registry
 documents mappings for ID3v2.2, v2.3, and v2.4. An untagged source uses v2.4.
 ID3v1/v1.1 trailer values are read at lower precedence. Canonical writes go to
 ID3v2, and explicit removals also clear matching legacy trailer values.

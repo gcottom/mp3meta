@@ -3,7 +3,7 @@ package mp3meta
 import (
 	"bytes"
 
-	core "github.com/gcottom/audiometa-core"
+	core "github.com/gcottom/audiometa-core/v2"
 )
 
 func readID3v1Field(tag []byte, field core.Field) (core.Value, bool) {

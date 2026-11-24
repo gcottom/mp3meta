@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	core "github.com/gcottom/audiometa-core"
+	core "github.com/gcottom/audiometa-core/v2"
 )
 
 // OpenMetadata opens an MP3 with its canonical fields, custom fields, and

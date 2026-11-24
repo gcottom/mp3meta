@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	core "github.com/gcottom/audiometa-core"
+	core "github.com/gcottom/audiometa-core/v2"
 )
 
 func (tag rawID3Tag) saveMetadata(r io.ReadSeeker, w io.Writer, changes core.Changes) error {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	core "github.com/gcottom/audiometa-core"
+	core "github.com/gcottom/audiometa-core/v2"
 )
 
 func (tag rawID3Tag) decodePicture(f rawID3Frame) (core.Picture, bool) {

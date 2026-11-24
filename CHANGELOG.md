@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v2.0.0
+
+- Move the Go module to `github.com/gcottom/mp3meta/v2` and use AudioMeta Core v2. Existing API names are available under the new import path.
 
 - Added the canonical `OpenMetadata` API for ID3v2.2, v2.3 and v2.4, with lower-precedence reads for ID3v1/v1.1.
 - Added native and conventional storage choices, typed fallback fields, multi-valued custom metadata, and limited native artwork, credits, synchronized lyrics, and chapters.
