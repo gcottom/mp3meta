@@ -55,7 +55,10 @@ type MP3Tag struct {
 	SubTitle          string
 	Year              string
 
-	reader io.ReadSeeker
+	reader      io.ReadSeeker
+	coverSource *image.Image
+	coverDirty  bool
+	clearCover  bool
 }
 
 func (m *MP3Tag) ClearAllTags() {
@@ -66,6 +69,8 @@ func (m *MP3Tag) ClearAllTags() {
 	m.Composer = ""
 	m.Copyright = ""
 	m.CoverArt = nil
+	m.coverDirty = true
+	m.clearCover = true
 	m.Date = ""
 	m.DiscNumber = 0
 	m.DiscTotal = 0
@@ -167,6 +172,7 @@ func (t *MP3Tag) SetAlbum(album string) {
 }
 func (t *MP3Tag) SetCoverArt(coverArt *image.Image) {
 	t.CoverArt = coverArt
+	t.coverDirty = true
 }
 func (t *MP3Tag) SetAlbumArtist(albumArtist string) {
 	t.AlbumArtist = albumArtist
