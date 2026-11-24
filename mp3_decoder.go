@@ -2,7 +2,7 @@ package mp3meta
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"image"
 	"io"
 	"reflect"
@@ -15,9 +15,9 @@ import (
 func ParseMP3(r io.ReadSeeker) (*MP3Tag, error) {
 	resultTag := MP3Tag{}
 	resultTag.reader = r
-	tag, err := mp3TagLib.ParseReader(r, mp3TagLib.Options{Parse: true})
+	tag, _, err := readMP3ID3(r)
 	if err != nil {
-		return nil, errors.New("error parsing mp3")
+		return nil, fmt.Errorf("error parsing mp3: %w", err)
 	}
 	rtPtr := reflect.ValueOf(&resultTag).Elem()
 	for k, v := range mp3TextFrames {

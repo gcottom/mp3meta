@@ -6,10 +6,8 @@ import (
 	"image/jpeg"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
 
-	"github.com/aler9/writerseeker"
 	mp3TagLib "github.com/bogem/id3v2/v2"
 )
 
@@ -19,11 +17,10 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 		return err
 	}
 
-	mp3Tag, err := mp3TagLib.ParseReader(r, mp3TagLib.Options{Parse: true})
+	mp3Tag, layout, err := readMP3ID3(r)
 	if err != nil {
 		return err
 	}
-	originalSize := int64(mp3Tag.Size())
 	for k, v := range mp3TextFrames {
 		if k == "DiscNumberString" {
 			textFrame := mp3TagLib.TextFrame{
@@ -64,59 +61,126 @@ func SaveMP3(tag *MP3Tag, w io.Writer) error {
 			})
 		}
 	}
-	_, err = r.Seek(0, io.SeekStart)
-	if err != nil {
-		return err
-	}
-	if reflect.TypeOf(w) == reflect.TypeOf(new(os.File)) {
-		f := w.(*os.File)
-		path, err := filepath.Abs(f.Name())
+	// bytes outside the declared ID3v2 header must be retained verbatim.
+	if layout.audioStart != 0 {
+		end, err := r.Seek(0, io.SeekEnd)
 		if err != nil {
 			return err
 		}
-		w2, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+		if layout.audioStart > end {
+			return io.ErrUnexpectedEOF
+		}
+	}
+	if layout.footer != nil {
+		if _, err := r.Seek(layout.audioStart-int64(len(layout.footer)), io.SeekStart); err != nil {
+			return err
+		}
+		var actual [10]byte
+		if _, err := io.ReadFull(r, actual[:]); err != nil {
+			return err
+		}
+		if actual != *layout.footer {
+			return fmt.Errorf("invalid ID3v2.4 footer")
+		}
+	}
+	if _, err := r.Seek(layout.audioStart, io.SeekStart); err != nil {
+		return err
+	}
+	write := func(out io.Writer) error {
+		if _, err := mp3Tag.WriteTo(out); err != nil {
+			return err
+		}
+		_, err := io.Copy(out, r)
+		return err
+	}
+	if f, ok := w.(*os.File); ok {
+		// The reader and writer may be the same file, including distinct
+		// handles. Stage the full rewrite on disk before touching the target.
+		tmp, err := os.CreateTemp("", "mp3meta-*.mp3")
 		if err != nil {
 			return err
 		}
-		defer w2.Close()
-		//in and out are the same file so we have to temp it
-		t := &writerseeker.WriterSeeker{}
-		defer t.Close()
-		// Write tag in new file.
-		if _, err := mp3Tag.WriteTo(t); err != nil {
+		defer os.Remove(tmp.Name())
+		defer tmp.Close()
+		if err := write(tmp); err != nil {
 			return err
 		}
-		// Seek to a music part of original file.
-		if _, err = r.Seek(originalSize, io.SeekStart); err != nil {
+		if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
-		if _, err := io.Copy(t, r); err != nil {
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
-		if _, err = t.Seek(0, io.SeekStart); err != nil {
+		if err := f.Truncate(0); err == nil {
+			_, err = io.Copy(f, tmp)
 			return err
 		}
-		if _, err := io.Copy(w2, t.BytesReader()); err != nil {
+		// Preserve the historical Save(os.Open(path)) workflow. Only reopen
+		// the same underlying file; never truncate a replaced path.
+		original, err := f.Stat()
+		if err != nil {
 			return err
 		}
-		if _, err = f.Seek(0, io.SeekEnd); err != nil {
+		target, err := os.OpenFile(f.Name(), os.O_WRONLY, 0)
+		if err != nil {
 			return err
 		}
-		return nil
+		defer target.Close()
+		current, err := target.Stat()
+		if err != nil {
+			return err
+		}
+		if !os.SameFile(original, current) {
+			return fmt.Errorf("MP3 output path changed before save")
+		}
+		if err := target.Truncate(0); err != nil {
+			return err
+		}
+		if _, err := io.Copy(target, tmp); err != nil {
+			return err
+		}
+		if err := target.Close(); err != nil {
+			return err
+		}
+		_, err = f.Seek(0, io.SeekEnd)
+		return err
 	}
+	return write(w)
+}
 
-	// Write tag in new file.
-	if _, err = mp3Tag.WriteTo(w); err != nil {
-		return err
-	}
-	// Seek to a music part of original file.
-	if _, err = r.Seek(originalSize, io.SeekStart); err != nil {
-		return err
-	}
+type id3Layout struct {
+	audioStart int64
+	footer     *[10]byte
+}
 
-	// Write to new file the music part.
-	if _, err = io.Copy(w, r); err != nil {
-		return err
+// readMP3ID3 parses the frames and returns the declared on-disk ID3v2
+// extent. Tag.Size describes the re-encoded frames, not the input padding.
+func readMP3ID3(r io.Reader) (*mp3TagLib.Tag, id3Layout, error) {
+	var header [10]byte
+	n, err := io.ReadFull(r, header[:])
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil, id3Layout{}, err
 	}
-	return nil
+	var layout id3Layout
+	if n >= 3 && string(header[:3]) == "ID3" {
+		if n < len(header) {
+			return nil, id3Layout{}, io.ErrUnexpectedEOF
+		}
+		for _, b := range header[6:] {
+			if b&0x80 != 0 {
+				return nil, id3Layout{}, fmt.Errorf("invalid ID3v2 tag size")
+			}
+			layout.audioStart = layout.audioStart<<7 | int64(b)
+		}
+		layout.audioStart += int64(len(header))
+		// ID3v2.4's optional footer is not included in the header size.
+		if header[3] == 4 && header[5]&0x10 != 0 {
+			layout.audioStart += int64(len(header))
+			footer := header
+			copy(footer[:3], "3DI")
+			layout.footer = &footer
+		}
+	}
+	tag, err := mp3TagLib.ParseReader(io.MultiReader(bytes.NewReader(header[:n]), r), mp3TagLib.Options{Parse: true})
+	return tag, layout, err
 }

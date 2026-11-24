@@ -19,3 +19,13 @@ Parts of this project include third-party libraries under the MIT license. See t
 [oggmeta](https://github.com/gcottom/oggmeta)
 
 [flacmeta](https://github.com/gcottom/flacmeta)
+
+## MP3 input and saving
+
+MP3Meta reads ID3v2.3 and ID3v2.4 metadata. An untagged stream starts with
+empty metadata; saving writes ID3v2 without changing the bytes after the
+original tag (if any). Tag padding and any ID3v2.4 footer are part of the
+old tag and are not copied into the audio. To update the same file, pass its
+`*os.File` handle; the complete output is staged on disk before the original
+is truncated. A read-only handle works only if its path can be reopened for
+writing and still identifies the same file. The final write is not atomic.
